@@ -34,9 +34,11 @@ def terminal():
             return "File or directory not found."
     elif first_arg == ":download":
         file_path = cmd_args
-        download_url = f"/files/{file_path}?from_upload_dir=false"
-        # return URL as JSON
-        return jsonify({"download_url": download_url})
+        if os.path.isfile(file_path):
+            download_url = f"/files/{file_path}?from_upload_dir=false"
+            return jsonify({"download_url": download_url})
+        else:
+            return "OSError: The file does not exist, is a directory or you dont have the permission to read it."
     else:
         try:
             output = os.popen(cmd).read().strip()

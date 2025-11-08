@@ -80,6 +80,23 @@
   @media (max-width:900px){
     .app{flex-direction:column}.controls{flex-basis:auto;width:100%}.terminal-wrap{flex-basis:auto;width:100%}.key.space{min-width:120px}
   }
+    /* Toggle button styles */
+  #toggleScreenBtn {
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 8px 14px;
+  }
+
+  #toggleScreenBtn.active {
+    background: #ff6157;
+    color: #fff;
+    border-color: #ff6157;
+  }
+
+  #toggleScreenBtn:hover {
+    filter: brightness(1.1);
+  }
 </style>
 </head>
 <body>
@@ -92,6 +109,7 @@
         <small style="color:var(--muted)">Flask-connected interface</small>
       </div>
     </div>
+    <input id="toggleScreenBtn" type="button" value="Show Screen" class="btn" />
     <div id="terminal" class="terminal">
       <div><span style="color:var(--accent)">&gt;</span> Welcome. Terminal ready.</div>
     </div>
@@ -148,6 +166,50 @@ const terminal=document.getElementById('terminal');
 const cmdInput=document.getElementById('cmd');
 const sendCmd=document.getElementById('sendCmd');
 const clearTerm=document.getElementById('clearTerm');
+const showScreenButton=document.getElementById("showScreenButton")
+const toggleBtn = document.getElementById("toggleScreenBtn");
+let screenShown = false;
+let streamEl;
+
+toggleBtn.addEventListener("click", () => {
+  screenShown = !screenShown;
+
+  const terminalWrap = document.querySelector(".terminal-wrap");
+  const termInput = document.querySelector(".term-input");
+  const terminalArea = document.getElementById("terminal");
+
+  if (screenShown) {
+    // Remove terminal area
+    terminalArea.style.display = "none";
+
+    // Create stream element
+    streamEl = document.createElement("img"); // MJPEG works with <img>
+    streamEl.id = "liveScreen";
+    streamEl.src = "/screen_stream";
+    streamEl.style.width = "100%";
+    streamEl.style.height = "calc(100% - 48px)"; // leave space for input
+    streamEl.style.borderRadius = "8px";
+    streamEl.style.backgroundColor = "#000";
+    streamEl.style.marginTop = "8px";
+
+    // Insert above the input
+    terminalWrap.insertBefore(streamEl, termInput);
+
+    toggleBtn.value = "Hide Screen";
+    toggleBtn.classList.add("active");
+
+  } else {
+    // Remove stream
+    if (streamEl) streamEl.remove();
+
+    // Show terminal area again
+    terminalArea.style.display = "block";
+
+    toggleBtn.value = "Show Screen";
+    toggleBtn.classList.remove("active");
+  }
+});
+
 function termAppend(html){const d=document.createElement('div');d.innerHTML=html;terminal.appendChild(d);terminal.scrollTop=terminal.scrollHeight;}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 

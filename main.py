@@ -1,9 +1,30 @@
 import os
+import mss
+import cv2
 import flask
+import numpy as np
 import pyautogui as pg
-from flask import request, jsonify, send_from_directory
+from flask import request, jsonify, send_from_directory, Response
 
 app = flask.Flask(__name__, static_folder="static", template_folder="templates")
+
+
+def generate_screen_frames():
+    with mss.mss() as sct:
+        monitor = sct.monitors[1]  # primary screen
+        while True:
+            img = np.array(sct.grab(monitor))
+            # Convert BGRA -> BGR for OpenCV
+            frame = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+@app.route("/screen_stream")
+def screen_stream():
+    return Response(generate_screen_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route("/")
 def homepage():

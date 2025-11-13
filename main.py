@@ -8,6 +8,8 @@ from flask import request, jsonify, send_from_directory, Response
 
 app = flask.Flask(__name__, static_folder="static", template_folder="templates")
 
+PLUGINS_DIR = os.path.join(os.getcwd(), "plugins")
+os.makedirs(PLUGINS_DIR, exist_ok=True)
 
 def generate_screen_frames():
     with mss.mss() as sct:
@@ -21,14 +23,31 @@ def generate_screen_frames():
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
+@app.route("/")
+def homepage():
+    return flask.render_template("index.html")
+
 @app.route("/screen_stream")
 def screen_stream():
     return Response(generate_screen_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route("/")
-def homepage():
-    return flask.render_template("index.html")
+@app.route("/plugins", methods=["GET"])
+def list_plugins():
+    plugins = [f for f in os.listdir(PLUGINS_DIR) if f.endswith(".py")]
+    return jsonify([{"name": p} for p in plugins])
+
+@app.route("/plugins/<path:name>", methods=["POST"])
+def run_plugin(name):
+    path = os.path.join(PLUGINS_DIR, name)
+    if not os.path.isfile(path):
+        return f"Plugin '{name}' not found", 404
+    try:
+        output = os.popen(f'python "{path}"').read().strip()
+        return output or f"Plugin {name} executed."
+    except Exception as e:
+        return str(e), 500
+
 
 @app.route("/terminal", methods=["POST"])
 def terminal():

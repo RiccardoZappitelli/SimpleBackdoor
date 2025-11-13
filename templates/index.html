@@ -158,6 +158,13 @@
       </div>
       <div class="files-list" id="filesList"></div>
     </div>
+    <div class="card">
+      <h3>Plugins</h3>
+      <div style="margin-bottom:8px;display:flex;gap:8px">
+      <button id="refreshPlugins" class="btn small">Refresh</button>
+      </div>
+    <div id="pluginsList" class="files-list"></div>
+    </div>
   </aside>
 </div>
 
@@ -257,11 +264,82 @@ function handleKeySent(key){
   fetch('/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
 }
 
-const kbd=document.getElementById('keyboard');
-const keys="`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./".split('');
-keys.forEach(k=>{const el=document.createElement('div');el.className='key';el.textContent=k;el.onclick=()=>handleKeySent(k);kbd.appendChild(el);});
-const wideKeys=['Backspace','Tab','Caps','Enter','Shift','Ctrl','Alt','Space', 'Gui'];
-wideKeys.forEach(k=>{const el=document.createElement('div');el.className='key wide';el.textContent=k;el.onclick=()=>handleKeySent(k);kbd.appendChild(el);});
+const pluginsList=document.getElementById('pluginsList');
+const refreshPlugins=document.getElementById('refreshPlugins');
+
+async function loadPlugins(){
+  const res=await fetch('/plugins');
+  const data=await res.json();
+  pluginsList.innerHTML='';
+  if(!data.length){
+    pluginsList.innerHTML='<div style="color:var(--muted);padding:8px">No plugins found.</div>';
+    return;
+  }
+  data.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='file-item';
+    el.innerHTML=`<div class="file-name">${escapeHtml(p.name)}</div>
+    <div class="file-actions"><button class="btn small">Run</button></div>`;
+    pluginsList.appendChild(el);
+    el.querySelector('button').onclick=()=>runPlugin(p.name);
+  });
+}
+
+async function runPlugin(name){
+  termAppend(`<small style="color:var(--muted)">Running plugin: ${escapeHtml(name)}</small>`);
+  const res = await fetch('/plugins/' + encodeURIComponent(name), { method: 'POST' });
+  const text = await res.text();
+
+  if (text.trimStart().startsWith("js:")) {
+    const jsCode = text.slice(3);
+    try {
+      new Function(jsCode)(); // executes the plugin’s JS
+      termAppend('<small style="color:var(--accent)">Plugin executed JavaScript.</small>');
+    } catch (err) {
+      termAppend('<pre style="color:var(--danger)">JS Error: ' + escapeHtml(err.message) + '</pre>');
+    }
+  } else {
+    termAppend('<pre>' + escapeHtml(text) + '</pre>');
+  }
+}
+
+
+refreshPlugins.onclick=loadPlugins;
+loadPlugins();
+
+
+const kbd = document.getElementById('keyboard');
+const layout = [
+  "` 1 2 3 4 5 6 7 8 9 0 - = Backspace",
+  "Tab Q W E R T Y U I O P [ ] \\",
+  "Caps A S D F G H J K L ; ' Enter",
+  "Shift Z X C V B N M , . / Shift",
+  "Ctrl Alt Gui Space Gui Alt Ctrl"
+];
+
+function handleKeySent(key) {
+  termAppend(`<small style="color:var(--muted)">key → ${escapeHtml(key)}</small>`);
+  fetch('/key', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ key })
+  });
+}
+
+layout.forEach(row => {
+  const rowEl = document.createElement('div');
+  rowEl.className = 'kbd-row';
+  row.split(' ').forEach(k => {
+    const el = document.createElement('div');
+    el.className = 'key';
+    if (['Backspace','Tab','Caps','Enter','Shift','Ctrl','Alt','Gui','Space'].includes(k)) el.classList.add('wide');
+    if (k === 'Space') el.classList.add('space');
+    el.textContent = k;
+    el.onclick = () => handleKeySent(k);
+    rowEl.appendChild(el);
+  });
+  kbd.appendChild(rowEl);
+});
 
 const fileInput=document.getElementById('fileInput');
 const uploadBtn=document.getElementById('uploadBtn');
